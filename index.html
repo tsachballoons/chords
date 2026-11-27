@@ -97,7 +97,6 @@ details code{background:#f1efe9;padding:0 4px;border-radius:4px;direction:ltr;un
  <button id="sm">הקטן גופן</button><button id="lg">הגדל גופן</button>
  <button class="l" id="rs">טיוטה אחרונה</button><button class="l" id="clr">התחל מחדש</button>
 </div>
-<label class="chk"><input type="checkbox" id="crOn" checked> הצג בתחתית הדף: tsachballoons.com</label>
 <div class="credit">🎈 הכלי נבנה באהבה על ידי <a href="https://tsachballoons.com" target="_blank" rel="noopener">צח אמן הבלונים</a><br>מופעי בלונים לכל המשפחה — <a href="https://tsachballoons.com" target="_blank" rel="noopener">tsachballoons.com</a></div>
 </div>
 <div class="wrap" id="pages"></div>
@@ -453,7 +452,7 @@ function blocksHTML(text){const L=text.split('\n');let bold=false;const html=[],
 function pageShell(first,title,capo,diags,note,n){
  return `<div class="page">${first?`<div class="top"><div class="title">${esc(title)}</div><div class="capo">${capo?'קאפו '+esc(capo):''}</div></div>`:''}
  <div class="body"></div>${first?`<div class="dg">${diags}</div>`:''}${first&&note?`<div class="note">${esc(note)}</div>`:''}
- <div class="foot"><span>לשימוש אישי בלבד</span>${$('crOn').checked?'<span class="cr">tsachballoons.com</span>':''}<span class="pno">${n}</span></div></div>`;}
+ <div class="foot"><span>לשימוש אישי בלבד</span><span class="pno">${n}</span></div></div>`;}
 function render(){
  const t=$('t').value.trim(),a=$('a').value.trim(),c=$('c').value.trim(),note=$('note').value.trim();
  const title=t?(a?t+' - '+a:t):'';
@@ -483,7 +482,6 @@ const prog=v=>{$('bar').style.display=v==null?'none':'block';$('barI').style.wid
 let tm;const safe=()=>{try{render();save();return true;}catch(e){st('שגיאה בתצוגה: '+e.message,'err');return false;}};
 const later=()=>{clearTimeout(tm);tm=setTimeout(safe,350)};
 ['t','a','c','note','ed'].forEach(id=>$(id).addEventListener('input',later));
-$('crOn').addEventListener('change',safe);
 function setResult(lines,capo,how){const tt=$('t').value.trim();if(tt){const i=lines.findIndex(l=>l.trim());if(i>=0&&lines[i].trim()===tt)lines.splice(i,1);}$('ed').value=lines.join('\n');if(capo)$('c').value=capo;if(!safe())return;
  st(how+' — בדקו את הדף, תקנו בתיבת העריכה אם צריך, ולחצו "הדפס"','ok');prog(null);
  $('ed').scrollIntoView({behavior:'smooth',block:'start'});}
