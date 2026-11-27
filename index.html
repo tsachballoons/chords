@@ -45,6 +45,7 @@ details code{background:#f1efe9;padding:0 4px;border-radius:4px;direction:ltr;un
 .sg{display:inline-block;vertical-align:bottom;white-space:pre}
 .sg .c{display:block;direction:ltr;text-align:right;font-size:.97em;min-height:1.12em;padding-left:.45em}
 .sg .w{display:block;min-height:1.12em}
+.sg .c:empty{padding:0}
 .co{direction:ltr;unicode-bidi:isolate;white-space:pre;display:inline-block}
 .bold .w,.bold .c,.bold .co,.bold.txt{font-weight:bold}
 .gap{height:.55em}
@@ -170,12 +171,12 @@ const isBar=x=>/^(\||\|\||\|:|:\||:|x\d|×\d|\d+x|-+|\.|\*|%)$/i.test(x);
 const words=l=>l.trim().split(/\s+/).filter(Boolean);
 function isChordLine(l){const w=words(l);return w.length>0&&w.every(x=>isChord(x)||isBar(x))&&w.some(isChord);}
 /* OCR-tolerant chord fixing */
-function fixChord(x){let y=x.replace(/[‘’'`´,.]/g,'').replace(/rn/g,'m').replace(/^6/,'G').replace(/^[0Oo]/,'C').replace(/^8/,'B').replace(/^\$/,'G')
- .replace(/(\d)\s*$/,'$1').replace(/^([A-G])ni/,'$1m').replace(/^([A-G])M$/,'$1m').replace(/^([a-g])(?=m|$|7|#|b)/,c=>c.toUpperCase());
+function fixChord(x){let y=x.replace(/[‘’'`´,.;]/g,'').replace(/rn/g,'m').replace(/^&/,'E').replace(/mai(?=\d|$)/,'maj').replace(/maj\s*7|ma\}7|maj\?/,'maj7').replace(/^([A-G])[cC]$/,(m,a)=>a==='C'?'C':m).replace(/^([A-G])M$/,'$1m').replace(/^6/,'G').replace(/^[0Oo]/,'C').replace(/^8/,'B').replace(/^\$/,'G')
+ .replace(/(\d)\s*$/,'$1').replace(/^([A-G])ni/,'$1m').replace(/^([A-G])M$/,'$1m').replace(/^c(?=m|$|7|#|b)/,'C');
  return y;}
 function chordScore(l){const w=words(l);if(!w.length)return 0;let ok=0;w.forEach(x=>{if(isChord(x)||isBar(x)||isChord(fixChord(x)))ok++});return ok/w.length;}
 const HEAD=/^\s*(פתיחה|בית|פזמון|מעבר|גשר|סיום|סולו|אינטרו|קודה|מעבר כלי|פזמון אחרון)(\s|$|:|\d|\()/;
-const SKIP=/(©|כל הזכויות|נגינה אונליין|אקורדים לשיר|^מילים\s*:|לחן\s*:|tab4u|www\.|http|גירסה קלה|גרסה קלה|לשימוש אישי)/i;
+const SKIP=/(©|כל הזכויות|מחבר ומלחין|^מחבר\s*:|^מלחין\s*:|^לחן ומילים|tab4u|print=|\.com|נגינה אונליין|אקורדים לשיר|^מילים\s*:|לחן\s*:|tab4u|www\.|http|גירסה קלה|גרסה קלה|לשימוש אישי)/i;
 /* ================= diagrams ================= */
 const OPEN={A:'x02220',Am:'x02210',A7:'x02020',Am7:'x02010',Amaj7:'x02120',Asus4:'x02230',Asus2:'x02200',A6:'x02222',
 B7:'x21202',Bm7:'x20202',C:'x32010',C7:'x32310',Cadd9:'x32030',Cmaj7:'x32000',D:'xx0232',Dm:'xx0231',D7:'xx0212',Dm7:'xx0211',Dmaj7:'xx0222',Dsus4:'xx0233',Dsus2:'xx0230',D6:'xx0202',
@@ -199,7 +200,7 @@ function diag(name){let s=shapeOf(name);if(!s)return'';
  o+=base===1?`<rect x="${sx}" y="${top-3}" width="${gx*5}" height="3"/>`:`<text x="${sx-4}" y="${top+9}" text-anchor="end" font-size="10">${base}</text>`;
  for(let i=0;i<6;i++)o+=`<line x1="${sx+i*gx}" y1="${top}" x2="${sx+i*gx}" y2="${top+gy*4}" stroke="#000" stroke-width=".8"/>`;
  for(let j=0;j<5;j++)o+=`<line x1="${sx}" y1="${top+j*gy}" x2="${sx+gx*5}" y2="${top+j*gy}" stroke="#000" stroke-width=".8"/>`;
- const barre=!fr.includes(0)&&fr.filter(f=>f===mn).length>=3&&pos.length>3;
+ const barre=!fr.includes(0)&&pos.length>3&&(fr.filter(f=>f===mn).length>=3||fr.lastIndexOf(mn)-fr.indexOf(mn)>=3);
  if(barre){const a=fr.indexOf(mn),b=fr.lastIndexOf(mn),y=top+(mn-base+.5)*gy;o+=`<rect x="${sx+a*gx-4}" y="${y-4}" width="${(b-a)*gx+8}" height="8" rx="4"/>`;}
  fr.forEach((f,i)=>{const x=sx+i*gx;
   if(f<0)o+=`<text x="${x}" y="${top-6}" text-anchor="middle" font-size="11">×</text>`;
@@ -244,9 +245,11 @@ function itemsToLines(items,pageW,fix){
  /* two columns? look for an empty vertical gutter in the middle */
  let cols=[items];
  {const B=100,cov=new Array(B).fill(0);for(const i of items){const a=Math.max(0,Math.floor(i.x/pageW*B)),z=Math.min(B-1,Math.floor(i.x2/pageW*B));for(let k=a;k<=z;k++)cov[k]++;}
-  const lim=Math.max(1,items.length*.004);let best=null,run=0;
-  for(let k=25;k<=75;k++){if(cov[k]<=lim){run++;if(run>=4&&(!best||run>best.len))best={len:run,end:k};}else run=0;}
-  if(best){const mid=(best.end-best.len/2+.5)/B*pageW;const L=items.filter(i=>(i.x+i.x2)/2<mid),R=items.filter(i=>(i.x+i.x2)/2>=mid);if(L.length>6&&R.length>6)cols=[R,L];}}
+  let best=null,run=0;
+  for(let k=25;k<=75;k++){if(cov[k]===0){run++;if(run>=3&&(!best||run>best.len))best={len:run,end:k};}else run=0;}
+  if(best){const mid=(best.end-best.len/2+.5)/B*pageW;const L=items.filter(i=>(i.x+i.x2)/2<mid),R=items.filter(i=>(i.x+i.x2)/2>=mid);
+   const nr=a=>rowsOf(a.map(o=>({...o}))).length;
+   if(L.length>6&&R.length>6&&nr(L)>=nr(R)*.35&&nr(R)>=nr(L)*.35)cols=[R,L];}}
  const out=[];let capo='';
  const hs=items.map(i=>i.h).sort((a,b)=>a-b),med=hs[Math.floor(hs.length/2)]||10;
  const chy=i=>{const t=i.s.trim();return /^(\||\|\||\|:|:\||x\d|×\d)$/.test(t)||isChord(fix?fixChord(t):t);};
@@ -259,7 +262,11 @@ function itemsToLines(items,pageW,fix){
    if(HEAD.test(t)&&chordScore(t.replace(HEAD,''))>=.6){const hw=t.match(HEAD)[1];out.push(hw+' '+words(t.slice(t.indexOf(hw)+hw.length)).map(x=>isBar(x)?x:(fix?fixChord(x):x)).join(' '));continue;}
    if(HEAD.test(t)&&words(t).length<=3){out.push(t);continue;}
    const sc=fix?chordScore(t):(isChordLine(t)?1:0);
-   if(sc>=.7){const nx=rows[k+1];
+   if(fix&&sc<.7){const nonSp=t.replace(/[\s,.\-:]/g,'');const hebN=(nonSp.match(/[\u05D0-\u05EA]/g)||[]).length;if(nonSp.length&&hebN/nonSp.length<.6)continue;}
+   if(sc>=.7){
+    while(rows[k+1]){const nx2=rows[k+1],nt2=rowText(nx2);const sc2=fix?chordScore(nt2):(isChordLine(nt2)?1:0);
+     if(sc2>=.7&&nx2.y-(r.y+r.h)<Math.max(r.h,nx2.h)*.9){r.items.push(...nx2.items);r.items.sort((a,b)=>b.x2-a.x2);r.y1=Math.max(r.y1,nx2.y1);r.h=r.y1-r.y;rows.splice(k+1,1);}else break;}
+    const nx=rows[k+1];
     if(nx){const nt=rowText(nx),ns=fix?chordScore(nt):(isChordLine(nt)?1:0);
      const gap=(nx.y)-(r.y+r.h);
      if(nt&&ns<.5&&!HEAD.test(nt)&&gap<Math.max(r.h,nx.h)*1.6){out.push(mergeRow(r,nx,fix));k++;continue;}}
@@ -294,31 +301,55 @@ let tessP=null;
 function loadTess(){if(tessP)return tessP;tessP=new Promise((res,rej)=>{const s=document.createElement('script');
  s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';s.onload=()=>res(window.Tesseract);s.onerror=()=>{tessP=null;rej(new Error('net'))};document.head.appendChild(s);});return tessP;}
 function fileToCanvas(f){return new Promise((res,rej)=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{
- const k=im.naturalWidth<1400?2:(im.naturalWidth<2200?1.4:1);const cv=document.createElement('canvas');cv.width=Math.round(im.naturalWidth*k);cv.height=Math.round(im.naturalHeight*k);
+ const k=im.naturalWidth<1000?2:(im.naturalWidth<1400?1.5:Math.min(1,2000/im.naturalWidth));const cv=document.createElement('canvas');cv.width=Math.round(im.naturalWidth*k);cv.height=Math.round(im.naturalHeight*k);
  const g=cv.getContext('2d',{willReadFrequently:true});g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.imageSmoothingQuality='high';g.drawImage(im,0,0,cv.width,cv.height);
  URL.revokeObjectURL(u);res(cv);};im.onerror=()=>rej(new Error('img'));im.src=u;});}
-/* split the image into colour layers (chords are usually printed in another colour) */
-function colourLayers(cv){
- const W=cv.width,H=cv.height,g=cv.getContext('2d',{willReadFrequently:true}),d=g.getImageData(0,0,W,H).data,N=W*H;
- /* dark-mode screenshots: invert */
- let darkPx=0;for(let i=0;i<d.length;i+=4*53)if(d[i]+d[i+1]+d[i+2]<300)darkPx++;const inv=darkPx>N/53*.5;
- const cls=new Int8Array(N);const hist=new Array(36).fill(0);let ink=0,achro=0;
- for(let p=0,i=0;p<N;p++,i+=4){let r=d[i],gg=d[i+1],b=d[i+2];if(inv){r=255-r;gg=255-gg;b=255-b;}
-  const mx=Math.max(r,gg,b),mn=Math.min(r,gg,b),sat=mx-mn,lum=(r+gg+b)/3;
-  if(!(lum<200||sat>75)){cls[p]=-1;continue;}ink++;
-  if(sat>50){const dd=sat||1;let h=mx===r?((gg-b)/dd+6)%6:mx===gg?(b-r)/dd+2:(r-gg)/dd+4;const bin=Math.floor(h*6)%36;cls[p]=bin;hist[bin]++;}
-  else{cls[p]=36;achro++;}}
- const chrom=ink-achro;const groups=[];
- if(chrom>ink*.03){const used=new Array(36).fill(false);
-  const order=[...hist.keys()].sort((x,y)=>hist[y]-hist[x]);
-  for(const pk of order){if(used[pk]||hist[pk]<chrom*.06)continue;const bins=[pk];used[pk]=true;
-   for(const dir of[1,-1]){let j=pk;for(;;){j=(j+dir+36)%36;if(used[j]||hist[j]<chrom*.01)break;used[j]=true;bins.push(j);}}
-   const cnt=bins.reduce((t,b)=>t+hist[b],0);if(cnt>ink*.02)groups.push(new Set(bins));}}
- const layers=groups.map(set=>({test:c=>c>=0&&c<36&&set.has(c)}));
- if(achro>ink*.04)layers.push({test:c=>c===36});
- const make=test=>{const o=document.createElement('canvas');o.width=W;o.height=H;const og=o.getContext('2d');const im=og.createImageData(W,H),q=im.data;
-  for(let p=0,i=0;p<N;p++,i+=4){const v=test(cls[p])?0:255;q[i]=q[i+1]=q[i+2]=v;q[i+3]=255;}og.putImageData(im,0,0);return o;};
- return {layers,make,cls,gray:()=>make(c=>c>=0)};}
+/* ---------- image preparation: shadows, tilt, colour layers ---------- */
+function prepImage(cv){
+ const W=cv.width,H=cv.height,g=cv.getContext('2d',{willReadFrequently:true});const src=g.getImageData(0,0,W,H).data,N=W*H;
+ /* dark-mode screenshot → invert */
+ let dk=0,cnt=0;for(let i=0;i<src.length;i+=4*61){cnt++;if(src[i]+src[i+1]+src[i+2]<240)dk++;}const inv=dk>cnt*.5;
+ if(inv)for(let i=0;i<src.length;i+=4){src[i]=255-src[i];src[i+1]=255-src[i+1];src[i+2]=255-src[i+2];}
+ /* background estimate (paper brightness incl. shadows) on a small copy */
+ const k=8,sw=Math.max(1,Math.round(W/k)),sh=Math.max(1,Math.round(H/k));
+ const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;tmp.getContext('2d').putImageData(new ImageData(src,W,H),0,0);
+ const sm=document.createElement('canvas');sm.width=sw;sm.height=sh;const sg=sm.getContext('2d',{willReadFrequently:true});sg.drawImage(tmp,0,0,sw,sh);
+ const sd=sg.getImageData(0,0,sw,sh);const mx=new Uint8ClampedArray(sd.data.length);const R=4;
+ for(let y=0;y<sh;y++)for(let x=0;x<sw;x++)for(let c=0;c<3;c++){let m=0;for(let dy=-R;dy<=R;dy++){const yy=Math.min(sh-1,Math.max(0,y+dy));for(let dx=-R;dx<=R;dx++){const xx=Math.min(sw-1,Math.max(0,x+dx));const v=sd.data[(yy*sw+xx)*4+c];if(v>m)m=v;}}mx[(y*sw+x)*4+c]=m;}
+ for(let i=3;i<mx.length;i+=4)mx[i]=255;
+ const sm2=document.createElement('canvas');sm2.width=sw;sm2.height=sh;sm2.getContext('2d').putImageData(new ImageData(mx,sw,sh),0,0);
+ const bgc=document.createElement('canvas');bgc.width=W;bgc.height=H;const bg=bgc.getContext('2d',{willReadFrequently:true});bg.filter='blur(40px)';bg.imageSmoothingQuality='high';bg.drawImage(sm2,0,0,W,H);
+ const bd=bg.getImageData(0,0,W,H).data;
+ /* normalised colour per pixel */
+ const lum=new Float32Array(N),cb=new Float32Array(N),cg=new Float32Array(N);
+ for(let p=0,i=0;p<N;p++,i+=4){const r=Math.min(1,src[i]/(bd[i]+1)),gg=Math.min(1,src[i+1]/(bd[i+1]+1)),b=Math.min(1,src[i+2]/(bd[i+2]+1));
+  lum[p]=(r+gg+b)/3;cb[p]=b-r;cg[p]=gg-(r+b)/2;}
+ const TH=.68;
+ /* tilt: try small angles on a sampled ink map, keep the one with the sharpest row profile */
+ const pts=[];for(let y=0;y<H;y+=3)for(let x=0;x<W;x+=3){const p=y*W+x;if(lum[p]<TH)pts.push(x,y);}
+ let bestA=0,bestV=-1;
+ for(let a=-4;a<=4.001;a+=.25){const t=Math.tan(a*Math.PI/180),bins=new Float32Array(Math.ceil(H/4)+400);
+  for(let j=0;j<pts.length;j+=2){const yy=Math.round((pts[j+1]-pts[j]*t)/4)+200;if(yy>=0&&yy<bins.length)bins[yy]++;}
+  let v=0;for(const q of bins)v+=q*q;if(v>bestV){bestV=v;bestA=a;}}
+ /* colour clusters among ink pixels (2-means on the chroma) */
+ const ids=[];for(let p=0;p<N;p+=7)if(lum[p]<TH)ids.push(p);
+ let c1=[-1,-1],c2=[1,1];
+ if(ids.length){let lo=ids[0],hi=ids[0];for(const p of ids){if(cb[p]<cb[lo])lo=p;if(cb[p]>cb[hi])hi=p;}c1=[cb[lo],cg[lo]];c2=[cb[hi],cg[hi]];
+  /* start from the two most different hues */
+  let far=ids[0],fd=-1;for(const p of ids){const d=(cb[p]-c1[0])**2+(cg[p]-c1[1])**2;if(d>fd){fd=d;far=p;}}c2=[cb[far],cg[far]];
+  for(let it=0;it<12;it++){let s1=[0,0,0],s2=[0,0,0];for(const p of ids){const d1=(cb[p]-c1[0])**2+(cg[p]-c1[1])**2,d2=(cb[p]-c2[0])**2+(cg[p]-c2[1])**2;const s=d1<=d2?s1:s2;s[0]+=cb[p];s[1]+=cg[p];s[2]++;}
+   if(s1[2])c1=[s1[0]/s1[2],s1[1]/s1[2]];if(s2[2])c2=[s2[0]/s2[2],s2[1]/s2[2]];}}
+ let n1=0,n2=0;for(const p of ids){const d1=(cb[p]-c1[0])**2+(cg[p]-c1[1])**2,d2=(cb[p]-c2[0])**2+(cg[p]-c2[1])**2;if(d1<=d2)n1++;else n2++;}
+ const sep=Math.hypot(c1[0]-c2[0],c1[1]-c2[1]);const two=sep>.09&&Math.min(n1,n2)>ids.length*.03;
+ const which=p=>{const d1=(cb[p]-c1[0])**2+(cg[p]-c1[1])**2,d2=(cb[p]-c2[0])**2+(cg[p]-c2[1])**2;return d1<=d2?1:2;};
+ /* build a black-on-white mask, rotated straight, optionally thickened */
+ const make=(test,thick)=>{const o=document.createElement('canvas');o.width=W;o.height=H;const og=o.getContext('2d');const im=og.createImageData(W,H),q=im.data;
+  for(let p=0,i=0;p<N;p++,i+=4){const on=lum[p]<(thick?.75:TH)&&test(p);const v=on?0:255;q[i]=q[i+1]=q[i+2]=v;q[i+3]=255;}
+  if(thick){const cp=new Uint8ClampedArray(q);for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){const i=(y*W+x)*4;if(cp[i]===255&&(cp[i-4]===0||cp[i+4]===0||cp[i-W*4]===0||cp[i+W*4]===0))q[i]=q[i+1]=q[i+2]=0;}}
+  og.putImageData(im,0,0);if(Math.abs(bestA)<.2)return o;
+  const r=document.createElement('canvas');r.width=W;r.height=H;const rg=r.getContext('2d');rg.fillStyle='#fff';rg.fillRect(0,0,W,H);
+  rg.translate(W/2,H/2);rg.rotate(-bestA*Math.PI/180);rg.drawImage(o,-W/2,-H/2);return r;};
+ return {two,angle:bestA,layers:two?[{test:p=>which(p)===1},{test:p=>which(p)===2}]:[],make,all:()=>make(()=>true,false),sep};}
 let wH=null,wE=null;
 function wordsOf(data){let ws=data.words;if(!ws||!ws.length){ws=[];(data.blocks||[]).forEach(b=>(b.paragraphs||[]).forEach(p=>(p.lines||[]).forEach(l=>(l.words||[]).forEach(w=>ws.push(w)))));}
  return ws.filter(w=>w.text&&w.text.trim()).map(w=>({s:w.text.trim(),x:w.bbox.x0,x2:w.bbox.x1,y:w.bbox.y0,h:Math.max(8,w.bbox.y1-w.bbox.y0),conf:w.confidence}));}
@@ -333,26 +364,30 @@ function chordItems(ws){return ws.flatMap(w=>/^(\||:\||\|:)$/.test(w.s)?[w]:spli
 function combine(eng,heb,clean){
  const ch=chordItems(eng);
  const ov=(a,b)=>Math.max(0,Math.min(a.x2,b.x2)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y));
- const hb=heb.filter(w=>/[\u0590-\u05FF0-9]/.test(w.s)&&(w.conf==null||w.conf>(clean?10:20))&&(clean||!ch.some(c=>ov(c,w)>(w.x2-w.x)*w.h*.3)));
+ const capoW=heb.filter(w=>/קאפו/.test(w.s));
+ const nearCapo=w=>capoW.some(c=>Math.abs((c.y+c.h/2)-(w.y+w.h/2))<c.h&&Math.abs(c.x-w.x2)<c.h*4);
+ const hb=heb.filter(w=>{const hebN=(w.s.match(/[\u05D0-\u05EA]/g)||[]).length;
+  if(!hebN)return /^\d{1,2}$/.test(w.s)&&nearCapo(w);
+  if(w.conf!=null&&w.conf<(hebN<=2?55:25))return false;
+  return clean||!ch.some(c=>ov(c,w)>(w.x2-w.x)*w.h*.3);});
  let id=0;return [...ch,...hb].map(w=>({...w,id:id++}));}
 async function ocrCanvases(cvs){
  const T=await loadTess();const n=cvs.length;let step=0,steps=n*3;
- const lg=m=>{if(m.status==='recognizing text')prog(20+(step+m.progress)*78/steps);else if(m.progress!=null&&m.status&&/load|init/.test(m.status))prog(3+m.progress*15);};
+ const lg=m=>{if(m.status==='recognizing text')prog(20+Math.min(78,(step+m.progress)*78/steps));else if(m.progress!=null&&m.status&&/load|init/.test(m.status))prog(3+m.progress*15);};
  const mk=async l=>{try{return await T.createWorker(l,1,{logger:lg})}catch(e){return await T.createWorker(l,1,{logger:lg,cacheMethod:'none'})}};
- if(!wH){wH=await mk('heb');await wH.setParameters({tessedit_pageseg_mode:'11',preserve_interword_spaces:'1'});}
+ if(!wH){wH=await mk('heb');}
  if(!wE){wE=await mk('eng');}
- const rec=async(w,cv,psm)=>{if(psm)await w.setParameters({tessedit_pageseg_mode:psm});const r=await w.recognize(cv,{},{blocks:true,text:true});step++;return wordsOf(r.data);};
+ const rec=async(w,cv,psm)=>{await w.setParameters({tessedit_pageseg_mode:psm});const r=await w.recognize(cv,{},{blocks:true,text:true});step++;return wordsOf(r.data);};
  let lines=[],capo='';
- for(curIdx=0;curIdx<n;curIdx++){const cv=cvs[curIdx];const CL=colourLayers(cv);let items=null;
-  if(CL.layers.length>=2){
-   /* find which colour layer holds the chords */
-   let best=null;steps+=CL.layers.length-1;
-   for(const L of CL.layers){const lc=CL.make(L.test);const ws=await rec(wE,lc,'6');const chs=chordItems(ws);
+ for(curIdx=0;curIdx<n;curIdx++){const cv=cvs[curIdx];const P=prepImage(cv);let items=null;
+  if(P.two){
+   let best=null;steps+=1;
+   for(const L of P.layers){const ws=await rec(wE,P.make(L.test,true),'6');const chs=chordItems(ws);
     const score=chs.length*(chs.length/Math.max(1,ws.length));if(!best||score>best.score)best={L,score,chs,ws};}
-   if(best&&best.chs.length>=3&&best.chs.length/Math.max(1,best.ws.length)>.45){
-    const lyr=CL.make(c=>c>=0&&!best.L.test(c));const hw=await rec(wH,lyr);
+   if(best&&best.chs.length>=2&&best.chs.length/Math.max(1,best.ws.length)>.4){
+    const other=P.layers.find(L=>L!==best.L);const hw=await rec(wH,P.make(other.test,false),'3');
     items=combine(best.ws,hw,true);}}
-  if(!items){const gcv=CL.gray();const ew=await rec(wE,gcv,'11');const hw=await rec(wH,gcv);items=combine(ew,hw,false);}
+  if(!items){const all=P.all();const ew=await rec(wE,all,'11');const hw=await rec(wH,all,'11');items=combine(ew,hw,false);}
   const r=itemsToLines(items,cv.width,true);if(r.capo)capo=r.capo;if(lines.length)lines.push('');lines.push(...r.lines);}
  prog(null);return {lines,capo};}
 let curIdx=0;
@@ -479,7 +514,7 @@ $('clr').onclick=()=>{['t','a','c','note','ed','paste'].forEach(i=>$(i).value=''
 function save(){try{localStorage.setItem('chordmaker5',JSON.stringify({t:$('t').value,a:$('a').value,c:$('c').value,n:$('note').value,e:$('ed').value}))}catch(e){}}
 let saved=null;try{saved=JSON.parse(localStorage.getItem('chordmaker5')||'null')}catch(e){}
 $('rs').onclick=()=>{if(!saved||!saved.e){st('אין טיוטה שמורה','err');return;}$('t').value=saved.t;$('a').value=saved.a;$('c').value=saved.c;$('note').value=saved.n||'';$('ed').value=saved.e;safe();};
-window.__test={render_raw:render,colourLayers,combine,chordItems,itemsToLines,pasteToLines,readPdf,setResult,render:safe,guessTitle};
+window.__test={render_raw:render,prepImage,combine,chordItems,itemsToLines,pasteToLines,readPdf,setResult,render:safe,guessTitle};
 safe();
 }
 </script>
